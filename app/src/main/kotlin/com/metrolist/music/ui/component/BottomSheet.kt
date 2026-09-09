@@ -231,6 +231,11 @@ class BottomSheetState(
         }
     }
     
+    suspend fun dismissAndWait() {
+        onAnchorChanged(dismissedAnchor)
+        animatable.animateTo(animatable.lowerBound!!)
+    }
+
     fun snapTo(value: Dp) {
         coroutineScope.launch {
             animatable.snapTo(value)

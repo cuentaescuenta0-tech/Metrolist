@@ -1,5 +1,17 @@
+import org.gradle.api.DefaultTask
+import org.gradle.api.file.DirectoryProperty
+
+import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.InputFile
+import org.gradle.api.tasks.Internal
+import org.gradle.api.tasks.TaskAction
+import org.gradle.process.ExecOperations
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.net.URL
 import java.util.Properties
+import javax.inject.Inject
 
 val localProperties = Properties()
 val localPropertiesFile = rootProject.file("local.properties")
@@ -29,7 +41,62 @@ plugins {
     alias(libs.plugins.kotlin.ksp)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.protobuf)
+}
+
+abstract class GenerateProtoTask : DefaultTask() {
+    @get:Input
+    abstract val protocUrl: Property<String>
+
+    @get:InputFile
+    abstract val protoSourceFile: RegularFileProperty
+
+    @get:Internal
+    abstract val generatedSourcesDir: DirectoryProperty
+
+    @get:Internal
+    abstract val protocExecutable: RegularFileProperty
+
+    @get:Inject
+    abstract val execOperations: ExecOperations
+
+    @TaskAction
+    fun generate() {
+        val protoFile = protoSourceFile.get().asFile
+        val outputDir = generatedSourcesDir.get().asFile
+        val protocFile = protocExecutable.get().asFile
+
+        outputDir.mkdirs()
+
+        if (!protocFile.exists() || protocFile.length() == 0L) {
+            val url = protocUrl.get()
+            logger.lifecycle("Downloading protoc ${url.substringAfterLast('/')} from $url")
+            protocFile.parentFile.mkdirs()
+            val connection = URL(url).openConnection() as java.net.HttpURLConnection
+            connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+            val responseCode = connection.responseCode
+            if (responseCode !in 200..299) {
+                throw GradleException("Failed to download protoc: Server returned HTTP response code $responseCode for URL: $url")
+            }
+            connection.inputStream.use { input ->
+                protocFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+            protocFile.setExecutable(true)
+        }
+
+        logger.lifecycle("Generating protobuf files in $outputDir")
+        execOperations.exec {
+            executable = protocFile.absolutePath
+            args(
+                "--java_out=lite:$outputDir",
+                "--kotlin_out=$outputDir",
+                "-I=${protoFile.parentFile}",
+                protoFile.absolutePath,
+            )
+        }
+        logger.lifecycle("Protobuf files generated successfully")
+    }
 }
 
 android {
@@ -40,8 +107,8 @@ android {
         applicationId = applicationIdOverride ?: baseApplicationId
         minSdk = 26
         targetSdk = 36
-        versionCode = 153
-        versionName = "13.7.0"
+        versionCode = 152
+        versionName = "13.6.3"
         val baseVersionName = requireNotNull(versionName)
         buildConfigField("String", "BASE_VERSION_NAME", "\"$baseVersionName\"")
         buildCommit?.let { versionName = "$baseVersionName+$it" }
@@ -51,7 +118,7 @@ android {
         vectorDrawables.useSupportLibrary = true
 
         ndk {
-            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
         }
 
         // LastFM API keys from GitHub Secrets
@@ -183,6 +250,7 @@ android {
 
     androidResources {
         generateLocaleConfig = true
+        noCompress += "tflite"
     }
 
     packaging {
@@ -205,26 +273,54 @@ android {
     }
 }
 
-protobuf {
-    protoc {
-        artifact = "com.google.protobuf:protoc:${libs.versions.protobuf.get()}"
+val protocVersion = libs.versions.protobuf.get()
+
+fun getProtocUrl(): String {
+    val os = System.getProperty("os.name").lowercase()
+    val arch = System.getProperty("os.arch").lowercase()
+
+    val osName = when {
+        os.contains("linux") -> "linux"
+        os.contains("mac") || os.contains("darwin") -> "osx"
+        os.contains("windows") -> "windows"
+        else -> "linux"
     }
-    generateProtoTasks {
-        all().configureEach {
-            builtins {
-                create("java") { option("lite") }
-                create("kotlin") { option("lite") }
-            }
-        }
+
+    val archName = when {
+        arch.contains("x86_64") || arch.contains("amd64") -> "x86_64"
+        arch.contains("aarch64") || arch.contains("arm64") -> "aarch_64"
+        arch.contains("x86") -> "x86_32"
+        else -> "x86_64"
     }
+
+    return "https://repo1.maven.org/maven2/com/google/protobuf/protoc/$protocVersion/protoc-$protocVersion-$osName-$archName.exe"
 }
 
-val cleanLegacyProtoSources = tasks.register<Delete>("cleanLegacyProtoSources") {
-    delete(layout.projectDirectory.dir("src/main/java/com/metrolist/music/listentogether/proto"))
+val protoDir = rootProject.file("metroproto")
+val protoFile = protoDir.resolve("listentogether.proto")
+
+val generateProto = if (protoFile.exists()) {
+    val protocUrl = getProtocUrl()
+    val protocFileName = URL(protocUrl).path.substringAfterLast('/')
+
+    tasks.register<GenerateProtoTask>("generateProto") {
+        group = "build"
+        description = "Generate Kotlin protobuf files"
+
+        protoSourceFile.set(protoFile)
+        generatedSourcesDir.set(file("src/main/java"))
+        this.protocUrl.set(protocUrl)
+        protocExecutable.set(layout.buildDirectory.file("protoc/$protocFileName"))
+    }
+} else {
+    logger.warn("Proto file not found at $protoFile. Skipping protobuf generation.")
+    null
 }
 
-tasks.named("preBuild") {
-    dependsOn(cleanLegacyProtoSources)
+tasks.configureEach {
+    if (name.startsWith("compile") || name.startsWith("assemble")) {
+        generateProto?.let { dependsOn(it) }
+    }
 }
 
 ksp {
@@ -248,11 +344,16 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
 // class is ever referenced.
 configurations.configureEach {
     exclude(group = "org.json", module = "json")
+    // PipePipe pulls full protobuf while the Android app uses protobuf-javalite.
+    exclude(group = "com.google.protobuf", module = "protobuf-java")
 }
 
 dependencies {
     implementation(libs.guava)
     implementation(libs.coroutines.guava)
+    implementation(libs.concurrent.futures)
+    // CPU-only on-device ranker. It never downloads a model or contacts a service.
+    implementation(libs.litert)
 
     implementation(libs.activity)
     implementation(libs.hilt.navigation)
@@ -262,9 +363,11 @@ dependencies {
     implementation(libs.compose.foundation)
     implementation(libs.compose.ui)
     implementation(libs.compose.ui.util)
+    implementation(libs.compose.ui.tooling)
     implementation(libs.compose.animation)
     implementation(libs.compose.reorderable)
 
+    implementation(libs.viewmodel)
     implementation(libs.viewmodel.compose)
     implementation(libs.lifecycle.process)
 
@@ -295,14 +398,28 @@ dependencies {
     implementation(libs.kuromoji.ipadic)
     implementation(libs.tinypinyin)
     ksp(libs.room.compiler)
+    implementation(libs.room.ktx)
+
+    implementation(libs.apache.lang3)
 
     implementation(libs.hilt)
+    implementation(libs.jsoup)
     ksp(libs.hilt.compiler)
 
     implementation(project(":innertube"))
+    // Independent SimpMusic/BravePipe fallback for stream extraction.
+    implementation(libs.brave.extractor)
+    implementation(libs.pipepipe.extractor)
+    implementation(libs.quickjs)
+    implementation(project(":kugou"))
+    implementation(project(":lrclib"))
+    implementation(project(":lastfm"))
+    implementation(project(":betterlyrics"))
+    implementation(project(":shazamkit"))
+    implementation(project(":paxsenix"))
 
     implementation(libs.ktor.client.core)
-    implementation(libs.ktor.client.okhttp)
+    implementation(libs.ktor.client.cio)
     implementation(libs.ktor.client.content.negotiation)
     implementation(libs.ktor.client.encoding)
     implementation(libs.ktor.serialization.json)

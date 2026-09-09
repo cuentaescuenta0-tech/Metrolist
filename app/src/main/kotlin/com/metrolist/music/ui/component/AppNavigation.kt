@@ -16,6 +16,7 @@ import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -32,6 +33,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import com.metrolist.music.ui.screens.Screens
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+
+@Immutable
+private data class NavItemState(
+    val isSelected: Boolean,
+    val iconRes: Int
+)
 
 @Stable
 private fun isRouteSelected(currentRoute: String?, screenRoute: String, navigationItems: List<Screens>): Boolean {
@@ -54,8 +61,7 @@ fun AppNavigationRail(
     onItemClick: (Screens, Boolean) -> Unit,
     modifier: Modifier = Modifier,
     pureBlack: Boolean = false,
-    onSearchLongClick: (() -> Unit)? = null,
-    onHomeLongHold: (() -> Unit)? = null,
+    onSearchLongClick: (() -> Unit)? = null
 ) {
     val containerColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer
     val haptics = LocalHapticFeedback.current
@@ -77,21 +83,20 @@ fun AppNavigationRail(
             }
 
             val isSearchItem = screen == Screens.Search && onSearchLongClick != null
-            val isHomeHoldItem = screen == Screens.Home && onHomeLongHold != null
             val interactionSource = remember { MutableInteractionSource() }
 
             // Long press detection using InteractionSource
-            if (isSearchItem || isHomeHoldItem) {
+            if (isSearchItem) {
                 LaunchedEffect(interactionSource) {
                     var isLongClick = false
                     interactionSource.interactions.collectLatest { interaction ->
                         when (interaction) {
                             is PressInteraction.Press -> {
                                 isLongClick = false
-                                delay(if (isHomeHoldItem) 15_000L else viewConfiguration.longPressTimeoutMillis)
+                                delay(viewConfiguration.longPressTimeoutMillis)
                                 isLongClick = true
                                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                if (isHomeHoldItem) onHomeLongHold.invoke() else onSearchLongClick?.invoke()
+                                onSearchLongClick.invoke()
                             }
                             is PressInteraction.Release -> {
                                 if (!isLongClick) {
@@ -109,10 +114,10 @@ fun AppNavigationRail(
             NavigationRailItem(
                 selected = isSelected,
                 onClick = {
-                    if (!isSearchItem && !isHomeHoldItem) {
+                    if (!isSearchItem) {
                         onItemClick(screen, currentIsSelected)
                     }
-                    // Long presses are handled via InteractionSource
+                    // For search item, click is handled via InteractionSource
                 },
                 interactionSource = interactionSource,
                 icon = {
@@ -136,8 +141,7 @@ fun AppNavigationBar(
     modifier: Modifier = Modifier,
     pureBlack: Boolean = false,
     slimNav: Boolean = false,
-    onSearchLongClick: (() -> Unit)? = null,
-    onHomeLongHold: (() -> Unit)? = null,
+    onSearchLongClick: (() -> Unit)? = null
 ) {
     val containerColor = if (pureBlack) Color.Black else MaterialTheme.colorScheme.surfaceContainer
     val contentColor = if (pureBlack) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
@@ -159,21 +163,20 @@ fun AppNavigationBar(
             }
 
             val isSearchItem = screen == Screens.Search && onSearchLongClick != null
-            val isHomeHoldItem = screen == Screens.Home && onHomeLongHold != null
             val interactionSource = remember { MutableInteractionSource() }
 
             // Long press detection using InteractionSource
-            if (isSearchItem || isHomeHoldItem) {
+            if (isSearchItem) {
                 LaunchedEffect(interactionSource) {
                     var isLongClick = false
                     interactionSource.interactions.collectLatest { interaction ->
                         when (interaction) {
                             is PressInteraction.Press -> {
                                 isLongClick = false
-                                delay(if (isHomeHoldItem) 15_000L else viewConfiguration.longPressTimeoutMillis)
+                                delay(viewConfiguration.longPressTimeoutMillis)
                                 isLongClick = true
                                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                if (isHomeHoldItem) onHomeLongHold.invoke() else onSearchLongClick?.invoke()
+                                onSearchLongClick.invoke()
                             }
                             is PressInteraction.Release -> {
                                 if (!isLongClick) {
@@ -191,10 +194,10 @@ fun AppNavigationBar(
             NavigationBarItem(
                 selected = isSelected,
                 onClick = {
-                    if (!isSearchItem && !isHomeHoldItem) {
+                    if (!isSearchItem) {
                         onItemClick(screen, currentIsSelected)
                     }
-                    // Long presses are handled via InteractionSource
+                    // For search item, click is handled via InteractionSource
                 },
                 interactionSource = interactionSource,
                 icon = {

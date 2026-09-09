@@ -283,7 +283,6 @@ object ComposeToImage {
             rawLogo?.let {
                 val logoPaint =
                     Paint().apply {
-                        colorFilter = PorterDuffColorFilter(bgColor, PorterDuff.Mode.SRC_IN)
                         isAntiAlias = true
                     }
 

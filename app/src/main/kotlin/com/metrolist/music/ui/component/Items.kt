@@ -145,11 +145,6 @@ fun currentGridThumbnailHeight(): Dp {
     return if (gridItemSize == GridItemSize.BIG) GridThumbnailHeight else SmallGridThumbnailHeight
 }
 
-private data class ArtistLink(
-    val id: String?,
-    val name: String,
-)
-
 @JvmName("ClickableArtistTextEntities")
 @Composable
 fun ClickableArtistText(
@@ -159,14 +154,41 @@ fun ClickableArtistText(
     color: Color = LocalContentColor.current,
     maxLines: Int = 1,
     overflow: TextOverflow = TextOverflow.Ellipsis,
-) = ArtistLinksText(
-    artists = remember(artists) { artists.map { ArtistLink(it.id, it.name) } },
-    modifier = modifier,
-    style = style,
-    color = color,
-    maxLines = maxLines,
-    overflow = overflow,
-)
+) {
+    val navController = LocalNavController.current
+    val andString = stringResource(R.string.and)
+    val artistNameAliases = LocalArtistNameAliases.current
+    val annotatedString = remember(artists, andString, color, artistNameAliases) {
+        buildAnnotatedString {
+            artists.forEachIndexed { index, artist ->
+                withLink(
+                    LinkAnnotation.Clickable(
+                        tag = artist.id,
+                        styles = TextLinkStyles(SpanStyle(color = color)),
+                    ) {
+                        navController.navigate("artist/${artist.id}")
+                    }
+                ) {
+                    append(ArtistNameAliases.resolve(artistNameAliases, artist.id, artist.name))
+                }
+                if (index != artists.lastIndex) {
+                    if (index == artists.lastIndex - 1) {
+                        append(" $andString ")
+                    } else {
+                        append(", ")
+                    }
+                }
+            }
+        }
+    }
+    Text(
+        text = annotatedString,
+        style = style,
+        maxLines = maxLines,
+        overflow = overflow,
+        modifier = modifier,
+    )
+}
 
 @JvmName("ClickableArtistTextInnerTube")
 @Composable
@@ -176,15 +198,47 @@ fun ClickableArtistText(
     style: TextStyle = MaterialTheme.typography.bodySmall,
     maxLines: Int = 1,
     overflow: TextOverflow = TextOverflow.Ellipsis,
-    color: Color = LocalContentColor.current,
-) = ArtistLinksText(
-    artists = remember(artists) { artists.map { ArtistLink(it.id, it.name) } },
-    modifier = modifier,
-    style = style,
-    color = color,
-    maxLines = maxLines,
-    overflow = overflow,
-)
+    color: Color = LocalContentColor.current
+) {
+    val navController = LocalNavController.current
+    val andString = stringResource(R.string.and)
+    val artistNameAliases = LocalArtistNameAliases.current
+    val annotatedString = remember(artists, andString, color, artistNameAliases) {
+        buildAnnotatedString {
+            artists.forEachIndexed { index, artist ->
+                val artistId = artist.id
+                if (artistId != null) {
+                    withLink(
+                        LinkAnnotation.Clickable(
+                            tag = artistId,
+                            styles = TextLinkStyles(SpanStyle(color = color)),
+                        ) {
+                            navController.navigate("artist/$artistId")
+                        }
+                    ) {
+                        append(ArtistNameAliases.resolve(artistNameAliases, artistId, artist.name))
+                    }
+                } else {
+                    append(ArtistNameAliases.resolve(artistNameAliases, null, artist.name))
+                }
+                if (index != artists.lastIndex) {
+                    if (index == artists.lastIndex - 1) {
+                        append(" $andString ")
+                    } else {
+                        append(", ")
+                    }
+                }
+            }
+        }
+    }
+    Text(
+        text = annotatedString,
+        style = style,
+        maxLines = maxLines,
+        overflow = overflow,
+        modifier = modifier,
+    )
+}
 
 @JvmName("ClickableArtistTextMedia")
 @Composable
@@ -195,23 +249,6 @@ fun ClickableArtistText(
     color: Color = LocalContentColor.current,
     maxLines: Int = 1,
     overflow: TextOverflow = TextOverflow.Ellipsis,
-) = ArtistLinksText(
-    artists = remember(artists) { artists.map { ArtistLink(it.id, it.name) } },
-    modifier = modifier,
-    style = style,
-    color = color,
-    maxLines = maxLines,
-    overflow = overflow,
-)
-
-@Composable
-private fun ArtistLinksText(
-    artists: List<ArtistLink>,
-    modifier: Modifier,
-    style: TextStyle,
-    color: Color,
-    maxLines: Int,
-    overflow: TextOverflow,
 ) {
     val navController = LocalNavController.current
     val andString = stringResource(R.string.and)
@@ -219,22 +256,27 @@ private fun ArtistLinksText(
     val annotatedString = remember(artists, andString, color, artistNameAliases) {
         buildAnnotatedString {
             artists.forEachIndexed { index, artist ->
-                if (artist.id != null) {
+                val artistId = artist.id
+                if (artistId != null) {
                     withLink(
                         LinkAnnotation.Clickable(
-                            tag = artist.id,
+                            tag = artistId,
                             styles = TextLinkStyles(SpanStyle(color = color)),
                         ) {
-                            navController.navigate("artist/${artist.id}")
-                        },
+                            navController.navigate("artist/$artistId")
+                        }
                     ) {
-                        append(ArtistNameAliases.resolve(artistNameAliases, artist.id, artist.name))
+                        append(ArtistNameAliases.resolve(artistNameAliases, artistId, artist.name))
                     }
                 } else {
                     append(ArtistNameAliases.resolve(artistNameAliases, null, artist.name))
                 }
                 if (index != artists.lastIndex) {
-                    append(if (index == artists.lastIndex - 1) " $andString " else ", ")
+                    if (index == artists.lastIndex - 1) {
+                        append(" $andString ")
+                    } else {
+                        append(", ")
+                    }
                 }
             }
         }

@@ -5,10 +5,13 @@
 
 package com.metrolist.music.viewmodels
 
+import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.metrolist.music.db.MusicDatabase
 import com.metrolist.music.db.entities.LyricsEntity
+import com.metrolist.music.db.entities.Song
 import com.metrolist.music.lyrics.LyricsHelper
 import com.metrolist.music.lyrics.LyricsResult
 import com.metrolist.music.models.MediaMetadata
@@ -39,6 +42,9 @@ constructor(
     private val _isNetworkAvailable = MutableStateFlow(false)
     val isNetworkAvailable: StateFlow<Boolean> = _isNetworkAvailable.asStateFlow()
 
+    private val _currentSong = mutableStateOf<Song?>(null)
+    val currentSong: State<Song?> = _currentSong
+
     init {
         viewModelScope.launch {
             networkConnectivity.networkStatus.collect { isConnected ->
@@ -51,6 +57,10 @@ constructor(
         } catch (e: Exception) {
             true // Assume connected as fallback
         }
+    }
+
+    fun setCurrentSong(song: Song) {
+        _currentSong.value = song
     }
 
     fun search(

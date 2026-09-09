@@ -76,6 +76,7 @@ import androidx.media3.common.C
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.exoplayer.offline.Download
 import androidx.media3.exoplayer.offline.DownloadService
+import com.metrolist.innertube.YouTube
 import com.metrolist.music.LocalNavController
 import com.metrolist.music.LocalDatabase
 import com.metrolist.music.LocalDownloadUtil
@@ -169,9 +170,12 @@ fun PlayerMenu(
 
     AddToPlaylistDialog(
         isVisible = showChoosePlaylistDialog,
-        onGetSong = {
+        onGetSong = { playlist ->
             database.withTransaction {
                 insert(mediaMetadata)
+            }
+            coroutineScope.launch(Dispatchers.IO) {
+                playlist.playlist.browseId?.let { YouTube.addToPlaylist(it, mediaMetadata.id) }
             }
             listOf(mediaMetadata.id)
         },
@@ -1485,7 +1489,7 @@ fun ListenTogetherDialog(
                 item { Spacer(modifier = Modifier.height(16.dp)) }
 
                 // Connected users - horizontal layout
-                val connectedUsers = room.usersList.filter { it.isConnected }
+                val connectedUsers = room.users.filter { it.isConnected }
 
                 item {
                     Column(
