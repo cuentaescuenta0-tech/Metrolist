@@ -241,7 +241,7 @@ object YouTube {
                         val items =
                             section.itemSectionRenderer.contents
                                 ?.mapNotNull { it.musicResponsiveListItemRenderer }
-                                ?.mapNotNull { SearchSummaryPage.fromMusicResponsiveListItemRenderer(it) }
+                                ?.mapNotNull { SearchPage.toYTItem(it) }
                                 ?.distinctBy { it.id }
                                 ?: emptyList()
 
