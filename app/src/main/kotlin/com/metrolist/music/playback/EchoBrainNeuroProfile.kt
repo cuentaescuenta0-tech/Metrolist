@@ -63,6 +63,18 @@ internal class EchoBrainNeuroProfile {
             put("topics", JSONObject(profile.topics))
         }.toString()
 
+    /** Applies one bounded local maintenance pass per calendar day. */
+    @Synchronized
+    fun consolidateDaily(): Boolean {
+        if (profile.topics.isEmpty()) return false
+        val compacted = trimTopics(profile.topics.mapValues { (_, value) ->
+            (value * DAILY_DECAY).coerceIn(0.0, 1.0)
+        })
+        if (compacted == profile.topics) return false
+        profile = profile.copy(topics = compacted)
+        return true
+    }
+
     /** Records an existing confirmation event exactly once per service session. */
     @Synchronized
     fun recordConfirmedPlayback(mediaItem: MediaItem): Boolean {
@@ -141,6 +153,7 @@ internal class EchoBrainNeuroProfile {
         const val SESSION_SIGNAL_LIMIT = 256
         const val POSITIVE_RATE = 0.12
         const val NEGATIVE_RATE = -0.12
+        const val DAILY_DECAY = 0.995
         val STOP_WORDS = setOf("the", "and", "feat", "official", "video", "music", "audio")
     }
 }

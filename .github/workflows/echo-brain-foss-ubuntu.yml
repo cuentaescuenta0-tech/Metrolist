@@ -1,0 +1,49 @@
+name: Echo Brain FOSS APK (Ubuntu)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: echo-brain-foss-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build FOSS debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Grant execute permission
+        run: chmod +x gradlew
+
+      - name: Build FOSS debug APK
+        run: ./gradlew --no-daemon --console=plain assembleFossDebug --warning-mode summary
+        env:
+          METROLIST_APPLICATION_ID: com.metrolist.music.test
+          METROLIST_APP_NAME: Metrolist Echo Brain FOSS
+          METROLIST_BUILD_COMMIT: ${{ github.sha }}
+          PULL_REQUEST: 'true'
+          GITHUB_EVENT_NAME: workflow_dispatch
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: metrolist-echo-brain-foss-debug
+          path: app/build/outputs/apk/foss/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
