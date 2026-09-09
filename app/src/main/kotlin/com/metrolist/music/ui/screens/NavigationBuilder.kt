@@ -49,11 +49,13 @@ import com.metrolist.music.ui.screens.settings.AppearanceSettings
 import com.metrolist.music.ui.screens.settings.BackupAndRestore
 import com.metrolist.music.ui.screens.settings.ContentSettings
 import com.metrolist.music.ui.screens.settings.DarkMode
+import com.metrolist.music.ui.screens.settings.EchoBrainSettings
 import com.metrolist.music.ui.screens.settings.PlayerSettings
 import com.metrolist.music.ui.screens.settings.PrivacySettings
 import com.metrolist.music.ui.screens.settings.RomanizationSettings
 import com.metrolist.music.ui.screens.settings.SettingsScreen
 import com.metrolist.music.ui.screens.settings.StorageSettings
+import com.metrolist.music.ui.screens.settings.StreamSourcesSettings
 import com.metrolist.music.ui.screens.settings.ThemeScreen
 import com.metrolist.music.ui.screens.settings.UpdaterScreen
 import com.metrolist.music.ui.screens.settings.integrations.DiscordSettings
@@ -349,7 +351,7 @@ fun NavGraphBuilder.navigationBuilder(
     }
 
     composable("settings/appearance") {
-        AppearanceSettings(navController, snackbarHostState)
+        AppearanceSettings(navController, activity, snackbarHostState)
     }
 
     composable("settings/appearance/theme") {
@@ -370,6 +372,14 @@ fun NavGraphBuilder.navigationBuilder(
 
     composable("settings/player") {
         PlayerSettings(navController)
+    }
+
+    composable("settings/echo_brain") {
+        EchoBrainSettings(navController)
+    }
+
+    composable("settings/stream_sources") {
+        StreamSourcesSettings(navController)
     }
 
     composable("settings/storage") {

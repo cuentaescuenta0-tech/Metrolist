@@ -871,6 +871,11 @@
     <string name="enable_zemer_desc">Letras para música judía</string>
     <string name="playlist_created_locally">Sincronización de YouTube se fallido. Se ha creado la lista de reproducción local.</string>
     <string name="ai_provider_inception_help">Visit https://platform.inceptionlabs.ai para claves API</string>
+    <string name="echo_brain_daily_learning">Aprendizaje automático diario</string>
+    <string name="echo_brain_daily_learning_on">Activado. FlowNeuro consolida el perfil local una vez al día. Última ejecución: %1$s.</string>
+    <string name="echo_brain_daily_learning_off">Desactivado. La retroalimentación no se consolida automáticamente. Última ejecución: %1$s.</string>
+    <string name="echo_brain_flowneuro">Perfil local FlowNeuro</string>
+    <string name="echo_brain_flowneuro_desc">Activo dentro de Echo Brain: los vectores locales aprenden de reproducciones confirmadas y saltos tempranos, y ordenan canciones elegibles sin cambiar las reglas de similitud.</string>
     <string name="update_available_message">Metrolist %s está listo para descargar.</string>
     <string name="update_action">Actualizar</string>
 </resources>

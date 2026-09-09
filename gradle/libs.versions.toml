@@ -34,6 +34,11 @@ kuromojiIpadic = "0.9.0"
 innertubex = "v0.5.2"
 tinypinyin = "2.0.3"
 protobuf = "4.36.0"
+braveNewpipe = "0fcaf19ecc"
+pipepipe = "f8982ca9e7"
+quickjs = "1.0.14"
+litert = "1.4.2"
+work = "2.10.1"
 
 [libraries]
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
@@ -101,12 +106,15 @@ junit = { module = "junit:junit", version.ref = "junit" }
 timber = { module = "com.jakewharton.timber:timber", version.ref = "timber" }
 
 innertubex = { module = "com.github.MetrolistGroup.innertubex:innertubex", version.ref = "innertubex" }
-
+brave-extractor = { module = "com.github.maxrave-dev:BravePipeExtractor", version.ref = "braveNewpipe" }
+pipepipe-extractor = { module = "com.github.maxrave-dev:PipePipeExtractor", version.ref = "pipepipe" }
+quickjs = { module = "io.github.dokar3:quickjs-kt", version.ref = "quickjs" }
 kuromoji-ipadic = { module = "com.atilika.kuromoji:kuromoji-ipadic", version.ref = "kuromojiIpadic" }
 tinypinyin = { module = "com.github.promeG:tinypinyin", version.ref = "tinypinyin" }
-
 protobuf-javalite = { module = "com.google.protobuf:protobuf-javalite", version.ref = "protobuf" }
 protobuf-kotlin-lite = { module = "com.google.protobuf:protobuf-kotlin-lite", version.ref = "protobuf" }
+litert = { module = "com.google.ai.edge.litert:litert", version.ref = "litert" }
+work-runtime = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
 
 [plugins]
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }

@@ -138,6 +138,78 @@ enum class LoudnessLevel(
 
 val AutoLoadMoreKey = booleanPreferencesKey("autoLoadMore")
 val AutoRadioQueueKey = booleanPreferencesKey("autoRadioQueue")
+val EchoBrainEnabledKey = booleanPreferencesKey("echoBrainEnabled")
+val EchoBrainDailyLearningEnabledKey = booleanPreferencesKey("echoBrainDailyLearningEnabled")
+val EchoBrainLastLearningDayKey = stringPreferencesKey("echoBrainLastLearningDay")
+const val DEFAULT_ECHO_BRAIN_MINIMUM_SIMILARITY = 90
+val EchoBrainMinimumSimilarityKey = intPreferencesKey("echoBrainMinimumSimilarity")
+val EchoBrainAllowAlternativeVersionsKey = booleanPreferencesKey("echoBrainAllowAlternativeVersions")
+val EchoBrainArtistDiversityKey = stringPreferencesKey("echoBrainArtistDiversity")
+val EchoBrainListeningConfirmationKey = stringPreferencesKey("echoBrainListeningConfirmation")
+val EchoBrainQueueContinuityKey = stringPreferencesKey("echoBrainQueueContinuity")
+val EchoBrainNetworkModeKey = stringPreferencesKey("echoBrainNetworkMode")
+val EchoBrainArtistWhitelistEnabledKey = booleanPreferencesKey("echoBrainArtistWhitelistEnabled")
+val EchoBrainArtistWhitelistKey = stringPreferencesKey("echoBrainArtistWhitelist")
+val EchoBrainExcludeLiveRemixKey = booleanPreferencesKey("echoBrainExcludeLiveRemix")
+val EchoBrainRecentInjectionHistoryKey = stringPreferencesKey("echoBrainRecentInjectionHistory")
+val EchoBrainRadioRelationCacheKey = stringPreferencesKey("echoBrainRadioRelationCache")
+val EchoBrainLastDiagnosticKey = stringPreferencesKey("echoBrainLastDiagnostic")
+val EchoBrainSequenceFeedbackKey = stringPreferencesKey("echoBrainSequenceFeedback")
+val EchoBrainNeuroProfileKey = stringPreferencesKey("echoBrainNeuroProfile")
+val PlaybackRecoveryLastDiagnosticKey = stringPreferencesKey("playbackRecoveryLastDiagnostic")
+val StreamSourceWebRemixKey = booleanPreferencesKey("streamSourceWebRemix")
+val StreamSourceTVHTML5Key = booleanPreferencesKey("streamSourceTVHTML5")
+val StreamSourceAndroidVRKey = booleanPreferencesKey("streamSourceAndroidVR")
+val StreamSourceVisionOSKey = booleanPreferencesKey("streamSourceVisionOS")
+val StreamSourceWebCreatorKey = booleanPreferencesKey("streamSourceWebCreator")
+
+enum class EchoBrainArtistDiversity {
+    UNLIMITED,
+    BALANCED,
+    HIGH,
+    ;
+
+    companion object {
+        fun fromPreference(value: String?): EchoBrainArtistDiversity =
+            entries.find { it.name == value } ?: BALANCED
+    }
+}
+
+enum class EchoBrainListeningConfirmation(val percent: Int) {
+    IMMEDIATE(0),
+    SIXTY_PERCENT(60),
+    EIGHTY_PERCENT(80),
+    ;
+
+    companion object {
+        fun fromPreference(value: String?): EchoBrainListeningConfirmation =
+            entries.find { it.name == value } ?: SIXTY_PERCENT
+    }
+}
+
+enum class EchoBrainQueueContinuity {
+    MIX_PRESERVING,
+    DOMINANT,
+    ;
+
+    companion object {
+        fun fromPreference(value: String?): EchoBrainQueueContinuity =
+            entries.find { it.name == value } ?: DOMINANT
+    }
+}
+
+enum class EchoBrainNetworkMode {
+    LOCAL_ONLY,
+    WIFI_ONLY,
+    ANY_NETWORK,
+    ;
+
+    companion object {
+        fun fromPreference(value: String?): EchoBrainNetworkMode =
+            entries.find { it.name == value } ?: WIFI_ONLY
+    }
+}
+
 val DisableLoadMoreWhenRepeatAllKey = booleanPreferencesKey("disableLoadMoreWhenRepeatAll")
 val AutoDownloadOnLikeKey = booleanPreferencesKey("autoDownloadOnLike")
 val SimilarContent = booleanPreferencesKey("similarContent")

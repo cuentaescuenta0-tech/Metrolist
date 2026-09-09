@@ -301,6 +301,13 @@ dependencies {
 
     implementation(project(":innertube"))
 
+    // Echo Brain FOSS extraction chain: on-device Faraday, PipePipe fallback, BravePipe last resort.
+    implementation(libs.brave.extractor)
+    implementation(libs.pipepipe.extractor)
+    implementation(libs.quickjs)
+    implementation(libs.litert)
+    implementation(libs.work.runtime)
+
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.okhttp)
     implementation(libs.ktor.client.content.negotiation)
