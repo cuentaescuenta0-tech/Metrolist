@@ -406,8 +406,7 @@ fun LyricsImageCard(
                             painter = painterResource(id = R.drawable.small_icon),
                             contentDescription = null,
                             modifier = Modifier
-                                .size(38.dp),
-                            colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(backgroundSolidColor)
+                                .size(38.dp)
                         )
                     }
 

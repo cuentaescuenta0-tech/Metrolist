@@ -13,6 +13,7 @@ import com.metrolist.innertube.YouTube
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import org.apache.commons.lang3.RandomStringUtils
 import java.time.LocalDateTime
 
 @Immutable
@@ -55,6 +56,6 @@ data class ArtistEntity(
     }
 
     companion object {
-        fun generateArtistId() = generateLocalId("LA")
+        fun generateArtistId() = "LA" + RandomStringUtils.insecure().next(8, true, false)
     }
 }

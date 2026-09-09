@@ -23,15 +23,11 @@ import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
-import io.ktor.utils.io.jvm.javaio.toByteReadChannel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.io.IOException
-import java.io.InputStream
 import java.net.Proxy
 import java.util.Locale
 import java.util.concurrent.TimeUnit
@@ -343,14 +339,9 @@ class InnerTube {
 
     suspend fun uploadSong(
         filename: String,
-        contentLength: Long,
-        content: () -> InputStream,
-    ) = withContext(Dispatchers.IO) {
-        innerTubeX
-            .uploadSong(filename, contentLength) {
-                content().toByteReadChannel(Dispatchers.IO)
-            }.requireSuccess("uploadSong")
-    }
+        data: ByteArray,
+        onProgress: ((Float) -> Unit)? = null,
+    ) = innerTubeX.uploadSong(filename, data, onProgress).requireSuccess("uploadSong")
 
     suspend fun deletePrivatelyOwnedEntity(entityId: String) =
         innerTubeX

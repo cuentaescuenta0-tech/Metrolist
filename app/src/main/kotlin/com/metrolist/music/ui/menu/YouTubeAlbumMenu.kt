@@ -154,7 +154,16 @@ fun YouTubeAlbumMenu(
 
     AddToPlaylistDialog(
         isVisible = showChoosePlaylistDialog,
-        onGetSong = { album?.songs?.map { it.id }.orEmpty() },
+        onGetSong = { playlist ->
+            coroutineScope.launch(Dispatchers.IO) {
+                playlist.playlist.browseId?.let { playlistId ->
+                    album?.album?.playlistId?.let { addPlaylistId ->
+                        YouTube.addPlaylistToPlaylist(playlistId, addPlaylistId)
+                    }
+                }
+            }
+            album?.songs?.map { it.id }.orEmpty()
+        },
         onGetSongIds = { album?.songs?.map { it.id }.orEmpty() },
         onDismiss = { showChoosePlaylistDialog = false }
     )

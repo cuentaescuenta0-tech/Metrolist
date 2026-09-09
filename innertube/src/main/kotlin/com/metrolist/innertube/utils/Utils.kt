@@ -81,3 +81,7 @@ fun String.parseTime(): Int? {
     }
     return null
 }
+
+fun isPrivateId(browseId: String): Boolean {
+    return browseId.contains("privately")
+}

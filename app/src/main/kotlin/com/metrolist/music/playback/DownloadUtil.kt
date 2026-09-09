@@ -98,7 +98,6 @@ constructor(
             CacheDataSource
                 .Factory()
                 .setCache(playerCache)
-                .setCacheWriteDataSinkFactory(null)
                 .setUpstreamDataSourceFactory(
                     OkHttpDataSource.Factory(streamHttpClient),
                 ),
@@ -256,7 +255,6 @@ constructor(
                         scope.launch {
                             when (download.state) {
                                 Download.STATE_COMPLETED -> {
-                                    removeFromPlayerCache(download.request.id)
                                     database.updateDownloadedInfo(download.request.id, true, LocalDateTime.now())
                                 }
                                 Download.STATE_FAILED,
@@ -296,17 +294,11 @@ constructor(
 
     init {
         val result = mutableMapOf<String, Download>()
-        downloadManager.downloadIndex.getDownloads().use { cursor ->
-            while (cursor.moveToNext()) {
-                result[cursor.download.request.id] = cursor.download
-            }
+        val cursor = downloadManager.downloadIndex.getDownloads()
+        while (cursor.moveToNext()) {
+            result[cursor.download.request.id] = cursor.download
         }
         downloads.value = result
-        scope.launch {
-            result.values
-                .filter { it.state == Download.STATE_COMPLETED }
-                .forEach { removeFromPlayerCache(it.request.id) }
-        }
     }
 
     fun getDownload(songId: String): Flow<Download?> = downloads.map { it[songId] }
@@ -318,8 +310,6 @@ constructor(
     fun download(mediaMetadata: MediaMetadata) {
         scope.launch {
             downloadPreparations.withPermit {
-                if (!shouldPrepareDownload(downloads.value[mediaMetadata.id]?.state)) return@withPermit
-
                 mediaMetadata.album?.let { album ->
                     if (database.albumEntity(album.id) == null) {
                         database.insert(
@@ -338,16 +328,7 @@ constructor(
                 if (existing == null) {
                     database.insert(mediaMetadata)
                 } else {
-                    database.update(
-                        existing,
-                        mediaMetadata,
-                        overwriteTitle = false,
-                        overwriteArtists = false,
-                    )
-                }
-
-                if (!shouldPrepareDownload(downloadManager.downloadIndex.getDownload(mediaMetadata.id)?.state)) {
-                    return@withPermit
+                    database.update(existing, mediaMetadata)
                 }
 
                 val request =
@@ -393,11 +374,6 @@ constructor(
         scope.cancel()
     }
 
-    private fun removeFromPlayerCache(songId: String) {
-        runCatching { playerCache.removeResource(songId) }
-            .onFailure { Timber.tag(TAG).w(it, "Failed to remove downloaded song $songId from player cache") }
-    }
-
     private fun Throwable?.isExpiredStreamError(): Boolean {
         var current = this
         while (current != null) {
@@ -411,8 +387,6 @@ constructor(
         return false
     }
 }
-
-internal fun shouldPrepareDownload(downloadState: Int?): Boolean = downloadState != Download.STATE_COMPLETED
 
 internal fun downloadArtworkUrls(
     songArtwork: String?,

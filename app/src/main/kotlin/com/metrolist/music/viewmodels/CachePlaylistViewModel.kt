@@ -9,11 +9,11 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.datasource.cache.Cache
-import androidx.media3.datasource.cache.ContentMetadata
 import com.metrolist.music.constants.HideExplicitKey
 import com.metrolist.music.constants.HideVideoSongsKey
 import com.metrolist.music.db.MusicDatabase
 import com.metrolist.music.db.entities.Song
+import com.metrolist.music.di.DownloadCache
 import com.metrolist.music.di.PlayerCache
 import com.metrolist.music.extensions.filterExplicit
 import com.metrolist.music.extensions.filterVideoSongs
@@ -39,6 +39,7 @@ class CachePlaylistViewModel
         @ApplicationContext private val context: Context,
         private val database: MusicDatabase,
         @PlayerCache private val playerCache: Cache,
+        @DownloadCache private val downloadCache: Cache,
     ) : ViewModel() {
         private data class Inputs(
             val flagged: List<Song>,
@@ -54,10 +55,10 @@ class CachePlaylistViewModel
                 context.dataStore.data.map { it[HideVideoSongsKey] ?: false }.distinctUntilChanged(),
                 ::Inputs,
             ).mapLatest { (flagged, hideExplicit, hideVideoSongs) ->
-                val partition =
-                    partitionCachedSongs(flagged, ::cachedContentLength) { songId, contentLength ->
+                val partition = partitionCachedSongs(flagged) { songId, contentLength ->
+                    downloadCache.isCached(songId, 0, contentLength) ||
                         playerCache.isCached(songId, 0, contentLength)
-                    }
+                }
 
                 // Clearing the flag removes these songs from cachePlaylistSongs(), so this
                 // re-emits once and then settles rather than looping.
@@ -76,24 +77,21 @@ class CachePlaylistViewModel
             }.flowOn(Dispatchers.IO)
                 .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-        fun removeSongFromCache(songId: String) = removeSongsFromCache(listOf(songId))
+        fun removeSongFromCache(songId: String) {
+            playerCache.removeResource(songId)
 
-        fun removeSongsFromCache(songIds: Collection<String>) {
-            songIds.forEach(playerCache::removeResource)
-
-            // Dropping the bytes does not touch the database, so clear the flags explicitly.
+            // Dropping the bytes does not touch the database, so nothing would invalidate
+            // cachePlaylistSongs() and the song would linger in the list until the screen is
+            // re-entered. Re-check this one song against the same rules and clear its flag here.
             database.query {
-                songIds.forEach { songId ->
-                    getSongByIdBlocking(songId)?.let { update(it.song.copy(dateDownload = null)) }
+                val song = getSongByIdBlocking(songId) ?: return@query
+                val partition = partitionCachedSongs(listOf(song)) { id, contentLength ->
+                    downloadCache.isCached(id, 0, contentLength) ||
+                        playerCache.isCached(id, 0, contentLength)
                 }
+                partition.stale.forEach { update(it.song.copy(dateDownload = null)) }
             }
         }
-
-        private fun cachedContentLength(song: Song): Long? =
-            song.format?.contentLength
-                ?: ContentMetadata
-                    .getContentLength(playerCache.getContentMetadata(song.id))
-                    .takeIf { it > 0L }
     }
 
 /**
@@ -108,25 +106,24 @@ internal data class CachedSongPartition(
  * Splits songs flagged as belonging to the Cache Playlist into those whose data is still
  * present and those whose flag must be cleared.
  *
- * Downloaded songs are omitted without being marked stale because [Song.song.dateDownload] also
- * stores their download date. A song whose content length is unknown cannot be checked, so it is
- * treated as stale rather than assumed present.
+ * A downloaded song is always considered present: its file is managed by the download service
+ * rather than the player cache. A song whose content length is unknown cannot be checked, so it
+ * is treated as stale rather than assumed present.
  *
  * [isCached] receives the song id and its content length, and reports whether the complete file
- * is available in the player cache.
+ * is available in either cache.
  */
 internal fun partitionCachedSongs(
     flagged: List<Song>,
-    resolveContentLength: (Song) -> Long? = { it.format?.contentLength },
     isCached: (songId: String, contentLength: Long) -> Boolean,
 ): CachedSongPartition {
     val stillCached = mutableListOf<Song>()
     val stale = mutableListOf<Song>()
 
     for (song in flagged) {
-        if (song.song.isDownloaded) continue
-        val contentLength = resolveContentLength(song)
-        val present = contentLength != null && isCached(song.song.id, contentLength)
+        val contentLength = song.format?.contentLength
+        val present = song.song.isDownloaded ||
+            (contentLength != null && isCached(song.song.id, contentLength))
         if (present) stillCached += song else stale += song
     }
 

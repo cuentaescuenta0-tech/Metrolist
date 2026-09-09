@@ -47,32 +47,11 @@ class CachePlaylistPartitionTest {
     }
 
     @Test
-    fun `downloaded song is excluded without clearing its download date`() {
-        var lookups = 0
-        val result = partitionCachedSongs(listOf(song("a", isDownloaded = true))) { _, _ ->
-            lookups++
-            true
-        }
-
-        assertEquals(emptyList<String>(), result.stillCached.map { it.id })
-        assertEquals(emptyList<String>(), result.stale.map { it.id })
-        assertEquals(0, lookups)
-    }
-
-    @Test
-    fun `cache metadata length is used when format is missing`() {
-        val seen = mutableListOf<Pair<String, Long>>()
-        val result =
-            partitionCachedSongs(
-                flagged = listOf(song("a", contentLength = null)),
-                resolveContentLength = { 2_000L },
-            ) { id, length ->
-                seen += id to length
-                true
-            }
+    fun `downloaded song stays cached even when the cache reports a miss`() {
+        val result = partitionCachedSongs(listOf(song("a", isDownloaded = true))) { _, _ -> false }
 
         assertEquals(listOf("a"), result.stillCached.map { it.id })
-        assertEquals(listOf("a" to 2_000L), seen)
+        assertEquals(emptyList<String>(), result.stale.map { it.id })
     }
 
     @Test

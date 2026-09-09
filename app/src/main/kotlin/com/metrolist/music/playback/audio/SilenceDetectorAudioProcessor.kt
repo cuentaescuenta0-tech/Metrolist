@@ -7,7 +7,6 @@ package com.metrolist.music.playback.audio
 
 import androidx.media3.common.C
 import androidx.media3.common.audio.AudioProcessor
-import androidx.media3.common.audio.BaseAudioProcessor
 import androidx.media3.common.util.UnstableApi
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -19,50 +18,66 @@ import kotlin.math.abs
  * is detected, [onLongSilence] is invoked exactly once per silent segment.
  */
 @UnstableApi
+@Suppress("DEPRECATION")
 class SilenceDetectorAudioProcessor(
     private val minSilenceDurationUs: Long = 2_000_000L,
     private val silenceThreshold: Int = 256,
     private val onLongSilence: () -> Unit,
-) : BaseAudioProcessor() {
+) : AudioProcessor {
+
     private var sampleRate = 0
     private var channelCount = 0
+    private var encoding = C.ENCODING_INVALID
+
+    private var buffer: ByteBuffer = EMPTY_BUFFER
+    private var outputBuffer: ByteBuffer = EMPTY_BUFFER
+    private var inputEnded = false
 
     @Volatile
-    var instantModeEnabled = false
+    var instantModeEnabled: Boolean = false
 
     @Volatile
-    private var consecutiveSilentFrames = 0L
+    private var consecutiveSilentFrames: Long = 0
 
     @Volatile
-    private var inSilence = false
+    private var inSilence: Boolean = false
 
     private var notifiedThisSilence = false
 
-    override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
-        if (inputAudioFormat.encoding != C.ENCODING_PCM_16BIT) {
-            throw AudioProcessor.UnhandledAudioFormatException(inputAudioFormat)
-        }
+    override fun configure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
         sampleRate = inputAudioFormat.sampleRate
         channelCount = inputAudioFormat.channelCount
+        encoding = inputAudioFormat.encoding
+
+        if (encoding != C.ENCODING_PCM_16BIT) {
+            throw AudioProcessor.UnhandledAudioFormatException(inputAudioFormat)
+        }
+
         return inputAudioFormat
     }
 
-    override fun queueInput(inputBuffer: ByteBuffer) {
-        if (!inputBuffer.hasRemaining()) return
+    override fun isActive(): Boolean = true
 
+    override fun queueInput(inputBuffer: ByteBuffer) {
+        if (!inputBuffer.hasRemaining()) {
+            outputBuffer = EMPTY_BUFFER
+            return
+        }
+
+        // Analyze the incoming PCM for silence without mutating the buffer position.
         if (instantModeEnabled && sampleRate > 0 && channelCount > 0) {
             detectSilence(inputBuffer)
         } else {
             clearSilenceState()
         }
 
-        replaceOutputBuffer(inputBuffer.remaining()).apply {
-            put(inputBuffer)
-            flip()
-        }
+        val out = replaceOutputBuffer(inputBuffer.remaining())
+        out.put(inputBuffer)
+        out.flip()
     }
 
     private fun detectSilence(inputBuffer: ByteBuffer) {
+        // Ensure predictable endian access for getShort(index).
         inputBuffer.order(ByteOrder.LITTLE_ENDIAN)
 
         val frameCount = inputBuffer.remaining() / 2 / channelCount
@@ -72,12 +87,16 @@ class SilenceDetectorAudioProcessor(
             var framePeak = 0
             repeat(channelCount) { channelIndex ->
                 val sampleIndex = basePosition + (frameIndex * channelCount + channelIndex) * 2
-                framePeak = maxOf(framePeak, abs(inputBuffer.getShort(sampleIndex).toInt()))
+                val sampleValue = abs(inputBuffer.getShort(sampleIndex).toInt())
+                if (sampleValue > framePeak) {
+                    framePeak = sampleValue
+                }
             }
 
             if (framePeak < silenceThreshold) {
                 consecutiveSilentFrames++
-                if (consecutiveSilentFrames * 1_000_000L / sampleRate >= minSilenceDurationUs) {
+                val silentDurationUs = (consecutiveSilentFrames * 1_000_000L) / sampleRate
+                if (silentDurationUs >= minSilenceDurationUs) {
                     inSilence = true
                     if (!notifiedThisSilence) {
                         notifiedThisSilence = true
@@ -96,15 +115,51 @@ class SilenceDetectorAudioProcessor(
         notifiedThisSilence = false
     }
 
-    fun resetTracking() = clearSilenceState()
+    fun resetTracking() {
+        clearSilenceState()
+    }
 
     fun isCurrentlySilent(): Boolean = inSilence
 
-    override fun onFlush(streamMetadata: AudioProcessor.StreamMetadata) = clearSilenceState()
+    override fun queueEndOfStream() {
+        inputEnded = true
+    }
 
-    override fun onReset() {
+    override fun getOutput(): ByteBuffer {
+        val output = outputBuffer
+        outputBuffer = EMPTY_BUFFER
+        return output
+    }
+
+    override fun isEnded(): Boolean = inputEnded && outputBuffer === EMPTY_BUFFER
+
+    @Deprecated("Deprecated in AudioProcessor")
+    override fun flush() {
+        outputBuffer = EMPTY_BUFFER
+        inputEnded = false
+        clearSilenceState()
+    }
+
+    @Deprecated("Deprecated in AudioProcessor")
+    override fun reset() {
+        flush()
+        buffer = EMPTY_BUFFER
         sampleRate = 0
         channelCount = 0
-        clearSilenceState()
+        encoding = C.ENCODING_INVALID
+    }
+
+    private fun replaceOutputBuffer(size: Int): ByteBuffer {
+        if (buffer.capacity() < size) {
+            buffer = ByteBuffer.allocateDirect(size).order(ByteOrder.nativeOrder())
+        } else {
+            buffer.clear()
+        }
+        outputBuffer = buffer
+        return buffer
+    }
+
+    companion object {
+        private val EMPTY_BUFFER: ByteBuffer = ByteBuffer.allocateDirect(0).order(ByteOrder.nativeOrder())
     }
 }

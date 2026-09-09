@@ -81,7 +81,6 @@ const val SYSTEM_DEFAULT = "SYSTEM_DEFAULT"
 val AppLanguageKey = stringPreferencesKey("appLanguage")
 val ContentLanguageKey = stringPreferencesKey("contentLanguage")
 val ContentCountryKey = stringPreferencesKey("contentCountry")
-val EnableZemerKey = booleanPreferencesKey("enableZemer")
 val EnableKugouKey = booleanPreferencesKey("enableKugou")
 val EnableLrcLibKey = booleanPreferencesKey("enableLrclib")
 val EnableBetterLyricsKey = booleanPreferencesKey("enableBetterLyrics")
@@ -100,8 +99,6 @@ val ProxyUsernameKey = stringPreferencesKey("proxyUsername")
 val ProxyPasswordKey = stringPreferencesKey("proxyPassword")
 val YtmSyncKey = booleanPreferencesKey("ytmSync")
 val CheckForUpdatesKey = booleanPreferencesKey("checkForUpdates")
-val DismissedStandaloneUpdateKey = stringPreferencesKey("dismissedStandaloneUpdate")
-val DismissedKmpUpdateKey = stringPreferencesKey("dismissedKmpUpdate")
 val UpdateNotificationsEnabledKey = booleanPreferencesKey("updateNotifications")
 
 val AudioQualityKey = stringPreferencesKey("audioQuality")
@@ -138,6 +135,79 @@ enum class LoudnessLevel(
 
 val AutoLoadMoreKey = booleanPreferencesKey("autoLoadMore")
 val AutoRadioQueueKey = booleanPreferencesKey("autoRadioQueue")
+val EchoBrainEnabledKey = booleanPreferencesKey("echoBrainEnabled")
+const val DEFAULT_ECHO_BRAIN_MINIMUM_SIMILARITY = 90
+val EchoBrainMinimumSimilarityKey = intPreferencesKey("echoBrainMinimumSimilarity")
+val EchoBrainAllowAlternativeVersionsKey = booleanPreferencesKey("echoBrainAllowAlternativeVersions")
+val EchoBrainArtistDiversityKey = stringPreferencesKey("echoBrainArtistDiversity")
+val EchoBrainListeningConfirmationKey = stringPreferencesKey("echoBrainListeningConfirmation")
+val EchoBrainQueueContinuityKey = stringPreferencesKey("echoBrainQueueContinuity")
+val EchoBrainNetworkModeKey = stringPreferencesKey("echoBrainNetworkMode")
+val EchoBrainArtistWhitelistEnabledKey = booleanPreferencesKey("echoBrainArtistWhitelistEnabled")
+val EchoBrainArtistWhitelistKey = stringPreferencesKey("echoBrainArtistWhitelist")
+val EchoBrainExcludeLiveRemixKey = booleanPreferencesKey("echoBrainExcludeLiveRemix")
+val EchoBrainRecentInjectionHistoryKey = stringPreferencesKey("echoBrainRecentInjectionHistory")
+val EchoBrainRadioRelationCacheKey = stringPreferencesKey("echoBrainRadioRelationCache")
+val EchoBrainLastDiagnosticKey = stringPreferencesKey("echoBrainLastDiagnostic")
+val EchoBrainSequenceFeedbackKey = stringPreferencesKey("echoBrainSequenceFeedback")
+// Compact, on-device profile used only to order candidates that already pass Echo Brain filters.
+val EchoBrainNeuroProfileKey = stringPreferencesKey("echoBrainNeuroProfile")
+val PlaybackRecoveryLastDiagnosticKey = stringPreferencesKey("playbackRecoveryLastDiagnostic")
+val StreamSourceWebRemixKey = booleanPreferencesKey("streamSourceWebRemix")
+val StreamSourceTVHTML5Key = booleanPreferencesKey("streamSourceTVHTML5")
+val StreamSourceAndroidVRKey = booleanPreferencesKey("streamSourceAndroidVR")
+val StreamSourceVisionOSKey = booleanPreferencesKey("streamSourceVisionOS")
+val StreamSourceWebCreatorKey = booleanPreferencesKey("streamSourceWebCreator")
+
+enum class EchoBrainArtistDiversity {
+    UNLIMITED,
+    BALANCED,
+    HIGH,
+    ;
+
+    companion object {
+        fun fromPreference(value: String?): EchoBrainArtistDiversity =
+            entries.find { it.name == value } ?: BALANCED
+    }
+}
+
+enum class EchoBrainListeningConfirmation(
+    val percent: Int,
+) {
+    IMMEDIATE(0),
+    SIXTY_PERCENT(60),
+    EIGHTY_PERCENT(80),
+    ;
+
+    companion object {
+        fun fromPreference(value: String?): EchoBrainListeningConfirmation =
+            entries.find { it.name == value } ?: SIXTY_PERCENT
+    }
+}
+
+enum class EchoBrainQueueContinuity {
+    MIX_PRESERVING,
+    DOMINANT,
+    ;
+
+    companion object {
+        fun fromPreference(value: String?): EchoBrainQueueContinuity =
+            entries.find { it.name == value } ?: DOMINANT
+    }
+}
+
+enum class EchoBrainNetworkMode {
+    LOCAL_ONLY,
+    WIFI_ONLY,
+    ANY_NETWORK,
+    ;
+
+    companion object {
+        fun fromPreference(value: String?): EchoBrainNetworkMode =
+            entries.find { it.name == value } ?: WIFI_ONLY
+    }
+}
+
 val DisableLoadMoreWhenRepeatAllKey = booleanPreferencesKey("disableLoadMoreWhenRepeatAll")
 val AutoDownloadOnLikeKey = booleanPreferencesKey("autoDownloadOnLike")
 val SimilarContent = booleanPreferencesKey("similarContent")
@@ -250,7 +320,6 @@ val QuickPicksKey = stringPreferencesKey("discover")
 val PreferredLyricsProviderKey = stringPreferencesKey("lyricsProvider")
 val LyricsProviderOrderKey = stringPreferencesKey("lyricsProviderOrder")
 val SimpMusicMigrationDoneKey = booleanPreferencesKey("simpMusicMigrationDone")
-val VideoThumbnailMigrationDoneKey = booleanPreferencesKey("videoThumbnailMigrationDone")
 val QueueEditLockKey = booleanPreferencesKey("queueEditLock")
 val ShowWrappedCardKey = booleanPreferencesKey("show_wrapped_card")
 val WrappedSeenKey = booleanPreferencesKey("wrapped_seen")
@@ -453,14 +522,14 @@ val DeeplApiKey = stringPreferencesKey("deeplApiKey")
 val DeeplFormalityKey = stringPreferencesKey("deeplFormality")
 val AiSystemPromptKey = stringPreferencesKey("aiSystemPrompt")
 
-const val DEFAULT_AI_SYSTEM_PROMPT = """You are a precise lyrics translation assistant. Your output must ALWAYS be a valid JSON object of the form {"lines": ["line1", "line2", "line3"]}.
+const val DEFAULT_AI_SYSTEM_PROMPT = """You are a precise lyrics translation assistant. Your output must ALWAYS be a valid JSON array of strings.
 
 CRITICAL RULES:
-1. Output ONLY the JSON object: {"lines": ["line1", "line2", "line3"]}
+1. Output ONLY a JSON array: ["line1", "line2", "line3"]
 2. NO explanations, NO questions, NO additional text
-3. Each input line maps to exactly one entry in the "lines" array
+3. Each input line maps to exactly one output line
 4. Preserve empty lines as empty strings ""
-5. The "lines" array must contain EXACTLY {lineCount} items
+5. Return EXACTLY {lineCount} items in the array
 6. If uncertain, provide best approximation but maintain line count"""
 val LyricsGlowEffectKey = booleanPreferencesKey("lyricsGlowEffect")
 
