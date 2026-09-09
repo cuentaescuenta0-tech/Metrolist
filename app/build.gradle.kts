@@ -297,7 +297,10 @@ fun getProtocUrl(): String {
 }
 
 val protoDir = rootProject.file("metroproto")
-val protoFile = protoDir.resolve("listentogether.proto")
+val protoFile = sequenceOf(
+    protoDir.resolve("listentogether.proto"),
+    project.file("src/main/proto/listentogether.proto"),
+).firstOrNull { it.exists() } ?: protoDir.resolve("listentogether.proto")
 
 val generateProto = if (protoFile.exists()) {
     val protocUrl = getProtocUrl()
@@ -419,6 +422,7 @@ dependencies {
     implementation(project(":paxsenix"))
 
     implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.okhttp)
     implementation(libs.ktor.client.cio)
     implementation(libs.ktor.client.content.negotiation)
     implementation(libs.ktor.client.encoding)
