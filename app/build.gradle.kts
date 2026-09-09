@@ -357,6 +357,7 @@ dependencies {
     implementation(libs.concurrent.futures)
     // CPU-only on-device ranker. It never downloads a model or contacts a service.
     implementation(libs.litert)
+    implementation(libs.work.runtime)
 
     implementation(libs.activity)
     implementation(libs.hilt.navigation)

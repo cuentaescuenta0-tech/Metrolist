@@ -42,6 +42,8 @@ import com.metrolist.music.constants.EchoBrainArtistWhitelistEnabledKey
 import com.metrolist.music.constants.EchoBrainArtistWhitelistKey
 import com.metrolist.music.constants.EchoBrainExcludeLiveRemixKey
 import com.metrolist.music.constants.EchoBrainEnabledKey
+import com.metrolist.music.constants.EchoBrainDailyLearningEnabledKey
+import com.metrolist.music.constants.EchoBrainLastLearningDayKey
 import com.metrolist.music.constants.EchoBrainLastDiagnosticKey
 import com.metrolist.music.constants.EchoBrainListeningConfirmation
 import com.metrolist.music.constants.EchoBrainListeningConfirmationKey
@@ -67,6 +69,9 @@ fun EchoBrainSettings(
     LocalPlayerConnection.current ?: return
     val (echoBrainEnabled, onEchoBrainEnabledChange) =
         rememberPreference(EchoBrainEnabledKey, defaultValue = true)
+    val (dailyLearningEnabled, onDailyLearningEnabledChange) =
+        rememberPreference(EchoBrainDailyLearningEnabledKey, defaultValue = true)
+    val (lastLearningDay, _) = rememberPreference(EchoBrainLastLearningDayKey, defaultValue = "")
     val (minimumSimilarity, onMinimumSimilarityChange) =
         rememberPreference(
             EchoBrainMinimumSimilarityKey,
@@ -263,6 +268,31 @@ fun EchoBrainSettings(
                     title = { Text(stringResource(R.string.echo_brain_similarity)) },
                     description = { Text(similarityLabel(minimumSimilarity)) },
                     onClick = { showSimilarityDialog = true },
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.refresh),
+                    title = { Text(stringResource(R.string.echo_brain_daily_learning)) },
+                    description = {
+                        Text(
+                            stringResource(
+                                if (dailyLearningEnabled) R.string.echo_brain_daily_learning_on
+                                else R.string.echo_brain_daily_learning_off,
+                                lastLearningDay.ifBlank { "never" },
+                            ),
+                        )
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = dailyLearningEnabled,
+                            onCheckedChange = onDailyLearningEnabledChange,
+                        )
+                    },
+                    onClick = { onDailyLearningEnabledChange(!dailyLearningEnabled) },
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.refresh),
+                    title = { Text(stringResource(R.string.echo_brain_flowneuro)) },
+                    description = { Text(stringResource(R.string.echo_brain_flowneuro_desc)) },
                 ),
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.music_note),

@@ -137,6 +137,8 @@ enum class LoudnessLevel(
 val AutoLoadMoreKey = booleanPreferencesKey("autoLoadMore")
 val AutoRadioQueueKey = booleanPreferencesKey("autoRadioQueue")
 val EchoBrainEnabledKey = booleanPreferencesKey("echoBrainEnabled")
+val EchoBrainDailyLearningEnabledKey = booleanPreferencesKey("echoBrainDailyLearningEnabled")
+val EchoBrainLastLearningDayKey = stringPreferencesKey("echoBrainLastLearningDay")
 const val DEFAULT_ECHO_BRAIN_MINIMUM_SIMILARITY = 90
 val EchoBrainMinimumSimilarityKey = intPreferencesKey("echoBrainMinimumSimilarity")
 val EchoBrainAllowAlternativeVersionsKey = booleanPreferencesKey("echoBrainAllowAlternativeVersions")

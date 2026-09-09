@@ -36,6 +36,7 @@ import com.metrolist.music.utils.CrashHandler
 import com.metrolist.music.utils.ArtistNameAliases
 import com.metrolist.music.utils.InnerTubeXPlayer
 import com.metrolist.music.utils.SimpMusicFallbackPlayer
+import com.metrolist.music.playback.EchoBrainDailyLearningScheduler
 import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.safeDataStoreEdit
 import com.metrolist.music.utils.reportException
@@ -92,6 +93,7 @@ class App :
         Timber.plant(Timber.DebugTree())
         InnerTubeXPlayer.initialize(this)
         SimpMusicFallbackPlayer.initialize()
+        EchoBrainDailyLearningScheduler.schedule(this)
 
         // Pre-read Coil cache size on background to avoid runBlocking in newImageLoader
         applicationScope.launch(Dispatchers.IO) {

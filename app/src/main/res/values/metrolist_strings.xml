@@ -211,6 +211,11 @@
     <string name="echo_brain_section_desc">Control Echo Brain and request related recommendations for the current track without replacing your existing queue.</string>
     <string name="echo_brain_enabled">Enable Echo Brain</string>
     <string name="echo_brain_enabled_desc">Automatically add local recommendations after the active track.</string>
+    <string name="echo_brain_daily_learning">Daily automatic learning</string>
+    <string name="echo_brain_daily_learning_on">On. FlowNeuro consolidates the local profile once per day. Last run: %1$s.</string>
+    <string name="echo_brain_daily_learning_off">Off. Playback feedback is not consolidated automatically. Last run: %1$s.</string>
+    <string name="echo_brain_flowneuro">FlowNeuro local profile</string>
+    <string name="echo_brain_flowneuro_desc">Active inside Echo Brain: local vectors learn from confirmed plays and early skips, then rank eligible songs without changing the similarity rules.</string>
     <string name="echo_brain_inject_now">Inject recommendations now</string>
     <string name="echo_brain_inject_now_track">Find and insert new recommendations after %1$s.</string>
     <string name="echo_brain_enable_to_inject">Enable Echo Brain to inject recommendations.</string>
