@@ -1061,4 +1061,12 @@
     <string name="stream_source_android_vr_desc">Android VR clients (all versions).</string>
     <string name="stream_source_web_creator">WEB_CREATOR</string>
     <string name="stream_source_web_creator_desc">Creator web client.</string>
+    <string name="update_available_message">A new version is available.</string>
+    <string name="update_action">Update</string>
+    <string name="playlist_created_locally">Playlist created locally.</string>
+    <string name="error_offline_playback">Offline playback is unavailable for this track.</string>
+    <string name="error_no_internet_connection">No internet connection.</string>
+    <string name="ai_provider_inception_help">Configure the Inception provider for AI features.</string>
+    <string name="enable_zemer">Enable Zemer</string>
+    <string name="enable_zemer_desc">Use Zemer as an additional lyrics provider.</string>
 </resources>
