@@ -19,7 +19,7 @@ import android.os.IBinder
 import android.view.View
 import android.view.WindowManager
 import android.widget.Toast
-import androidx.fragment.app.FragmentActivity
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
@@ -138,9 +138,6 @@ import com.metrolist.music.constants.AppLanguageKey
 import com.metrolist.music.constants.CheckForUpdatesKey
 import com.metrolist.music.constants.DarkModeKey
 import com.metrolist.music.constants.DefaultOpenTabKey
-import com.metrolist.music.constants.DismissedKmpUpdateKey
-import com.metrolist.music.constants.DismissedStandaloneUpdateKey
-import com.metrolist.music.constants.DensityScaleKey
 import com.metrolist.music.constants.DisableScreenshotKey
 import com.metrolist.music.constants.DynamicThemeKey
 import com.metrolist.music.constants.EnableHighRefreshRateKey
@@ -167,7 +164,6 @@ import com.metrolist.music.constants.SlimNavBarKey
 import com.metrolist.music.constants.StopMusicOnTaskClearKey
 import com.metrolist.music.constants.UpdateNotificationsEnabledKey
 import com.metrolist.music.constants.UseNewMiniPlayerDesignKey
-import com.metrolist.music.constants.VideoThumbnailMigrationDoneKey
 import com.metrolist.music.db.MusicDatabase
 import com.metrolist.music.db.entities.SearchHistory
 import com.metrolist.music.extensions.toEnum
@@ -227,17 +223,9 @@ import timber.log.Timber
 import java.util.Locale
 import javax.inject.Inject
 
-private data class AvailableUpdate(
-    val release: ReleaseInfo,
-    val downloadUrl: String,
-    val isKmp: Boolean,
-) {
-    val dismissalKey = if (isKmp) DismissedKmpUpdateKey else DismissedStandaloneUpdateKey
-}
-
 @Suppress("DEPRECATION", "ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
 @AndroidEntryPoint
-class MainActivity : FragmentActivity() {
+class MainActivity : ComponentActivity() {
     companion object {
         private const val ACTION_SEARCH = "com.metrolist.music.action.SEARCH"
         private const val ACTION_LIBRARY = "com.metrolist.music.action.LIBRARY"
@@ -456,13 +444,6 @@ class MainActivity : FragmentActivity() {
                     settings[LastSeenVersionKey] = currentVersion
                 }
             }
-
-            if (preferences[VideoThumbnailMigrationDoneKey] != true) {
-                database.repairMissingVideoThumbnails()
-                safeDataStoreEdit { settings ->
-                    settings[VideoThumbnailMigrationDoneKey] = true
-                }
-            }
         }
 
         lifecycleScope.launch(Dispatchers.IO) {
@@ -495,76 +476,58 @@ class MainActivity : FragmentActivity() {
         syncUtils: SyncUtils,
     ) {
         val checkForUpdates by rememberPreference(CheckForUpdatesKey, defaultValue = true)
-        var availableUpdate by remember { mutableStateOf<AvailableUpdate?>(null) }
+        var kmpRelease by remember { mutableStateOf<ReleaseInfo?>(null) }
+        var kmpUpgradeDismissed by rememberSaveable { mutableStateOf(false) }
 
         if (BuildConfig.UPDATER_AVAILABLE) {
             LaunchedEffect(checkForUpdates) {
                 if (checkForUpdates) {
-                    val preferences = dataStore.data.first()
-                    val notificationsEnabled = preferences[UpdateNotificationsEnabledKey] ?: true
-                    val (releaseInfo, hasUpdate) = Updater.checkForUpdate().getOrNull() ?: (null to false)
-                    releaseInfo?.let { onLatestVersionNameChange(it.versionName) }
+                    withContext(Dispatchers.IO) {
+                        val updatesEnabled = dataStore.get(CheckForUpdatesKey, true)
+                        val notifEnabled = dataStore.get(UpdateNotificationsEnabledKey, true)
+                        if (!updatesEnabled) return@withContext
 
-                    val standaloneUpdate =
-                        releaseInfo
-                            ?.takeIf { hasUpdate }
-                            ?.let { release ->
-                                Updater.getDownloadUrlForCurrentVariant(release)?.let { downloadUrl ->
-                                    AvailableUpdate(release, downloadUrl, isKmp = false)
-                                }
-                            }
-                    val kmpUpdate =
-                        Updater.getLatestKmpRelease().getOrNull()?.let { release ->
-                            release.assets.firstOrNull()?.let { asset ->
-                                AvailableUpdate(release, asset.downloadUrl, isKmp = true)
-                            }
-                        }
-                    val update = kmpUpdate ?: standaloneUpdate
-                    availableUpdate = update?.takeUnless {
-                        it.release.tagName == preferences[it.dismissalKey]
-                    }
+                        Updater.checkForUpdate().onSuccess { (releaseInfo, hasUpdate) ->
+                            if (releaseInfo != null) {
+                                onLatestVersionNameChange(releaseInfo.versionName)
+                                if (hasUpdate && notifEnabled) {
+                                    val downloadUrl = Updater.getDownloadUrlForCurrentVariant(releaseInfo)
+                                    if (downloadUrl != null) {
+                                        val intent = Intent(Intent.ACTION_VIEW, downloadUrl.toUri())
 
-                    if (update != null && notificationsEnabled) {
-                        val intent = Intent(Intent.ACTION_VIEW, update.downloadUrl.toUri())
-                        val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                        val pending = PendingIntent.getActivity(this@MainActivity, 1001, intent, flags)
-                        val notificationText =
-                            if (update.isKmp) {
-                                getString(R.string.kmp_upgrade_warning)
-                            } else {
-                                update.release.versionName
-                            }
-                        val notification =
-                            NotificationCompat
-                                .Builder(this@MainActivity, "updates")
-                                .setSmallIcon(R.drawable.update)
-                                .setContentTitle(
-                                    if (update.isKmp) {
-                                        getString(R.string.kmp_upgrade_title, update.release.versionName)
-                                    } else {
-                                        getString(R.string.update_available_title)
-                                    },
-                                )
-                                .setContentText(notificationText)
-                                .apply {
-                                    if (update.isKmp) {
-                                        setStyle(NotificationCompat.BigTextStyle().bigText(notificationText))
+                                        val flags =
+                                            PendingIntent.FLAG_UPDATE_CURRENT or
+                                                (PendingIntent.FLAG_IMMUTABLE)
+                                        val pending = PendingIntent.getActivity(this@MainActivity, 1001, intent, flags)
+
+                                        val notif =
+                                            NotificationCompat
+                                                .Builder(this@MainActivity, "updates")
+                                                .setSmallIcon(R.drawable.update)
+                                                .setContentTitle(getString(R.string.update_available_title))
+                                                .setContentText(releaseInfo.versionName)
+                                                .setContentIntent(pending)
+                                                .setAutoCancel(true)
+                                                .build()
+
+                                        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                                            ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.POST_NOTIFICATIONS) ==
+                                            PackageManager.PERMISSION_GRANTED
+                                        ) {
+                                            NotificationManagerCompat.from(this@MainActivity).notify(1001, notif)
+                                        }
                                     }
                                 }
-                                .setContentIntent(pending)
-                                .setAutoCancel(true)
-                                .build()
+                            }
+                        }
 
-                        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-                            ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.POST_NOTIFICATIONS) ==
-                            PackageManager.PERMISSION_GRANTED
-                        ) {
-                            NotificationManagerCompat.from(this@MainActivity).notify(1001, notification)
+                        Updater.getLatestKmpRelease().onSuccess { releaseInfo ->
+                            kmpRelease = releaseInfo
                         }
                     }
                 } else {
                     onLatestVersionNameChange(BuildConfig.BASE_VERSION_NAME)
-                    availableUpdate = null
+                    kmpRelease = null
                 }
             }
         }
@@ -612,7 +575,6 @@ class MainActivity : FragmentActivity() {
         }
 
         val enableLandscapeScaling by rememberPreference(EnableLandscapeScalingKey, defaultValue = false)
-        val userDensityScale by rememberPreference(DensityScaleKey, defaultValue = 1f)
         val pureBlackEnabled by rememberPreference(PureBlackKey, defaultValue = false)
         val pureBlack =
             remember(pureBlackEnabled, useDarkTheme) {
@@ -692,22 +654,21 @@ class MainActivity : FragmentActivity() {
             val containerSize = windowInfo.containerDpSize
             val smallestDimensionDp = minOf(containerSize.width, containerSize.height)
 
-            val landscapeDensityScale =
-                remember(smallestDimensionDp, enableLandscapeScaling) {
-                    if (enableLandscapeScaling) {
-                        when {
-                            smallestDimensionDp >= 840.dp -> 1.15f
-                            smallestDimensionDp >= 720.dp -> 1.1f
-                            smallestDimensionDp >= 600.dp -> 1.05f
-                            else -> 1.0f
-                        }
-                    } else {
-                        1.0f
+            val densityScale = remember(smallestDimensionDp, enableLandscapeScaling) {
+                if (enableLandscapeScaling) {
+                    when {
+                        smallestDimensionDp >= 840.dp -> 1.15f
+                        smallestDimensionDp >= 720.dp -> 1.1f
+                        smallestDimensionDp >= 600.dp -> 1.05f
+                        else -> 1.0f
                     }
+                } else {
+                    1.0f
                 }
-            val scaledDensity: Density = remember(currentDensity, landscapeDensityScale, userDensityScale) {
+            }
+            val scaledDensity: Density = remember(currentDensity, densityScale) {
                 Density(
-                    density = currentDensity.density * landscapeDensityScale * userDensityScale,
+                    density = currentDensity.density * densityScale,
                     fontScale = currentDensity.fontScale,
                 )
             }
@@ -1220,7 +1181,6 @@ class MainActivity : FragmentActivity() {
                                         pureBlack = pureBlack,
                                         slimNav = slimNav,
                                         onSearchLongClick = onSearchLongClick,
-                                        onHomeLongHold = { showAccountDialog = true },
                                         modifier =
                                             Modifier
                                                 .align(Alignment.BottomCenter)
@@ -1337,7 +1297,6 @@ class MainActivity : FragmentActivity() {
                                     onItemClick = onRailItemClick,
                                     pureBlack = pureBlack,
                                     onSearchLongClick = onRailSearchLongClick,
-                                    onHomeLongHold = { showAccountDialog = true },
                                 )
                             }
                             Box(Modifier.weight(1f)) {
@@ -1449,19 +1408,14 @@ class MainActivity : FragmentActivity() {
                         }
                     }
 
-                    if (!showChangelog.value) {
-                        availableUpdate?.let { update ->
-                            val dismissUpdate: () -> Unit = {
-                                availableUpdate = null
-                                lifecycleScope.launch {
-                                    safeDataStoreEdit {
-                                        it[update.dismissalKey] = update.release.tagName
-                                    }
-                                }
-                            }
+                    if (!showChangelog.value && !kmpUpgradeDismissed) {
+                        kmpRelease?.let { release ->
+                            val downloadUrl = release.assets.first { it.name == Updater.KMP_APK_NAME }.downloadUrl
                             AlertDialog(
-                                onDismissRequest = dismissUpdate,
-                                title = { Text(stringResource(R.string.update_available_title)) },
+                                onDismissRequest = { kmpUpgradeDismissed = true },
+                                title = {
+                                    Text(stringResource(R.string.kmp_upgrade_title, release.versionName))
+                                },
                                 text = {
                                     Column(
                                         modifier =
@@ -1470,32 +1424,17 @@ class MainActivity : FragmentActivity() {
                                                 .verticalScroll(rememberScrollState()),
                                     ) {
                                         Text(
-                                            text =
-                                                stringResource(
-                                                    if (update.isKmp) {
-                                                        R.string.kmp_upgrade_title
-                                                    } else {
-                                                        R.string.update_available_message
-                                                    },
-                                                    update.release.versionName,
-                                                ),
+                                            text = stringResource(R.string.kmp_upgrade_warning),
                                             style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.error,
                                         )
-                                        if (update.isKmp) {
-                                            Text(
-                                                text = stringResource(R.string.kmp_upgrade_warning),
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = MaterialTheme.colorScheme.error,
-                                                modifier = Modifier.padding(top = 12.dp),
-                                            )
-                                        }
                                         Text(
                                             text = stringResource(R.string.changelog),
                                             style = MaterialTheme.typography.titleSmall,
                                             modifier = Modifier.padding(top = 16.dp, bottom = 8.dp),
                                         )
                                         Text(
-                                            text = update.release.description.ifBlank { stringResource(R.string.changelog_empty) },
+                                            text = release.description.ifBlank { stringResource(R.string.changelog_empty) },
                                             style = MaterialTheme.typography.bodySmall,
                                         )
                                     }
@@ -1503,19 +1442,15 @@ class MainActivity : FragmentActivity() {
                                 confirmButton = {
                                     TextButton(
                                         onClick = {
-                                            dismissUpdate()
-                                            startActivity(Intent(Intent.ACTION_VIEW, update.downloadUrl.toUri()))
+                                            kmpUpgradeDismissed = true
+                                            startActivity(Intent(Intent.ACTION_VIEW, downloadUrl.toUri()))
                                         },
                                     ) {
-                                        Text(
-                                            stringResource(
-                                                if (update.isKmp) R.string.kmp_upgrade_action else R.string.update_action,
-                                            ),
-                                        )
+                                        Text(stringResource(R.string.kmp_upgrade_action))
                                     }
                                 },
                                 dismissButton = {
-                                    TextButton(onClick = dismissUpdate) {
+                                    TextButton(onClick = { kmpUpgradeDismissed = true }) {
                                         Text(stringResource(R.string.kmp_upgrade_later))
                                     }
                                 },

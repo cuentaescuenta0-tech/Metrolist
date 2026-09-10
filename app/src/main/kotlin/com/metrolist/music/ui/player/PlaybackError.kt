@@ -55,7 +55,6 @@ fun PlaybackError(
     val playerConnection = LocalPlayerConnection.current ?: return
     val mediaMetadata by playerConnection.mediaMetadata.collectAsState()
     val streamClient by playerConnection.currentStreamClient.collectAsState()
-    val isOnline by playerConnection.service.connectivityObserver.networkStatus.collectAsState()
     val causes = remember(error) { error.causeChain() }
     val rawErrorMessages =
         remember(causes) {
@@ -82,12 +81,10 @@ fun PlaybackError(
             else -> null
         }
     val errorMessage =
-        playbackErrorMessages(
-            isOnline = isOnline,
-            offlineMessage = stringResource(R.string.error_offline_playback),
-            guidance = guidance,
-            rawErrorMessages = rawErrorMessages,
-        ).joinToString("\n").ifBlank { stringResource(R.string.error_unknown) }
+        (listOfNotNull(guidance) + rawErrorMessages)
+            .distinct()
+            .joinToString("\n")
+            .ifBlank { stringResource(R.string.error_unknown) }
     val causeSummary =
         remember(causes) {
             causes
@@ -120,9 +117,7 @@ fun PlaybackError(
         Spacer(modifier = Modifier.height(12.dp))
 
         Text(
-            text = stringResource(
-                if (isOnline) R.string.error_playback_failed else R.string.error_no_internet_connection,
-            ),
+            text = stringResource(R.string.error_playback_failed),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.error,
             textAlign = TextAlign.Center,
@@ -212,14 +207,6 @@ fun PlaybackError(
 
 internal fun Throwable.causeChain(): List<Throwable> =
     generateSequence(this) { it.cause }.take(8).toList()
-
-internal fun playbackErrorMessages(
-    isOnline: Boolean,
-    offlineMessage: String,
-    guidance: String?,
-    rawErrorMessages: List<String>,
-): List<String> =
-    if (isOnline) (listOfNotNull(guidance) + rawErrorMessages).distinct() else listOf(offlineMessage)
 
 private fun buildPlaybackErrorReport(
     error: PlaybackException,
