@@ -135,6 +135,7 @@ import com.metrolist.music.constants.EchoBrainQueueContinuityKey
 import com.metrolist.music.constants.EchoBrainRadioRelationCacheKey
 import com.metrolist.music.constants.EchoBrainRecentInjectionHistoryKey
 import com.metrolist.music.constants.EchoBrainSequenceFeedbackKey
+import com.metrolist.music.constants.EchoBrainStrictAffinityKey
 import com.metrolist.music.constants.DiscordActivityNameKey
 import com.metrolist.music.constants.DiscordActivityTypeKey
 import com.metrolist.music.constants.DiscordAdvancedModeKey
@@ -528,6 +529,8 @@ class MusicService :
     private var cachedAutoLoadMore = true
     @Volatile
     private var cachedEchoBrainEnabled = true
+    @Volatile
+    private var cachedEchoBrainStrictAffinity = true
     @Volatile
     private var cachedEchoBrainMinimumSimilarity = DEFAULT_ECHO_BRAIN_MINIMUM_SIMILARITY
     @Volatile
@@ -1255,6 +1258,11 @@ class MusicService :
                 .map { it[EchoBrainMinimumSimilarityKey] ?: DEFAULT_ECHO_BRAIN_MINIMUM_SIMILARITY }
                 .distinctUntilChanged()
                 .collect { cachedEchoBrainMinimumSimilarity = it.coerceIn(60, 100) }
+        }
+        scope.launch {
+            dataStore.data.map { it[EchoBrainStrictAffinityKey] ?: true }
+                .distinctUntilChanged()
+                .collect { cachedEchoBrainStrictAffinity = it }
         }
         scope.launch {
             dataStore.data
@@ -2619,6 +2627,7 @@ class MusicService :
                 sequenceFeedbackScores = sequenceFeedbackScores,
                 neuroProfileScores = initialNeuroProfileScores,
                 minimumSimilarity = cachedEchoBrainMinimumSimilarity,
+                strictAffinity = cachedEchoBrainStrictAffinity,
                 allowAlternativeVersions = cachedEchoBrainAllowAlternativeVersions,
                 excludeLiveRemix = cachedEchoBrainExcludeLiveRemix,
                 allowedArtistKeys = allowedArtistKeys,
@@ -2643,6 +2652,7 @@ class MusicService :
                     sequenceFeedbackScores = sequenceFeedbackScores,
                     neuroProfileScores = echoBrainNeuroProfile.candidateScores(nextItems),
                     minimumSimilarity = cachedEchoBrainMinimumSimilarity,
+                    strictAffinity = cachedEchoBrainStrictAffinity,
                     allowAlternativeVersions = cachedEchoBrainAllowAlternativeVersions,
                     allowedArtistKeys = allowedArtistKeys,
                     limitToAllowedArtists = limitToAllowedArtists,

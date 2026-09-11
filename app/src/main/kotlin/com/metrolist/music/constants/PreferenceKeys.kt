@@ -141,6 +141,8 @@ val AutoRadioQueueKey = booleanPreferencesKey("autoRadioQueue")
 val EchoBrainEnabledKey = booleanPreferencesKey("echoBrainEnabled")
 val EchoBrainDailyLearningEnabledKey = booleanPreferencesKey("echoBrainDailyLearningEnabled")
 val EchoBrainLastLearningDayKey = stringPreferencesKey("echoBrainLastLearningDay")
+val EchoBrainStrictAffinityKey = booleanPreferencesKey("echoBrainStrictAffinity")
+val EchoBrainLearningLevelKey = stringPreferencesKey("echoBrainLearningLevel")
 const val DEFAULT_ECHO_BRAIN_MINIMUM_SIMILARITY = 90
 val EchoBrainMinimumSimilarityKey = intPreferencesKey("echoBrainMinimumSimilarity")
 val EchoBrainAllowAlternativeVersionsKey = booleanPreferencesKey("echoBrainAllowAlternativeVersions")
@@ -162,6 +164,20 @@ val StreamSourceTVHTML5Key = booleanPreferencesKey("streamSourceTVHTML5")
 val StreamSourceAndroidVRKey = booleanPreferencesKey("streamSourceAndroidVR")
 val StreamSourceVisionOSKey = booleanPreferencesKey("streamSourceVisionOS")
 val StreamSourceWebCreatorKey = booleanPreferencesKey("streamSourceWebCreator")
+
+enum class EchoBrainLearningLevel {
+    OFF,
+    CONSERVATIVE,
+    BALANCED,
+    ADAPTIVE,
+    AGGRESSIVE,
+    ;
+
+    companion object {
+        fun fromPreference(value: String?): EchoBrainLearningLevel =
+            entries.find { it.name == value } ?: BALANCED
+    }
+}
 
 enum class EchoBrainArtistDiversity {
     UNLIMITED,
