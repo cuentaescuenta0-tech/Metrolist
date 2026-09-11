@@ -205,6 +205,19 @@ internal object EchoBrainQueuePlanner {
             (seedAlbum.isNotBlank() && normalize(metadata?.album?.id.orEmpty()) == seedAlbum)
     }
 
+    private fun hasExplicitRadioRelation(
+        candidate: MediaItem,
+        seedArtists: Set<String>,
+        seedAlbum: String,
+        momentArtistIds: Set<String>,
+        vaultArtistIds: Set<String>,
+    ): Boolean {
+        val metadata = candidate.metadata
+        val artists = metadata?.artists?.mapNotNull { it.id }?.toSet().orEmpty()
+        return artists.any { it in seedArtists || it in momentArtistIds || it in vaultArtistIds } ||
+            (seedAlbum.isNotBlank() && normalize(metadata?.album?.id.orEmpty()) == seedAlbum)
+    }
+
     /**
      * A YouTube mix can expose the same recording under distinct queue or video identifiers.
      * This key folds title and artists so Echo Brain never inserts a visible duplicate already
@@ -393,31 +406,3 @@ internal object EchoBrainQueuePlanner {
             "singleversion",
         )
 }
-        candidate: MediaItem,
-        seedArtists: Set<String>,
-        seedAlbum: String,
-        momentArtistIds: Set<String>,
-        vaultArtistIds: Set<String>,
-    ): Int {
-        val metadata = candidate.metadata
-        val artists = metadata?.artists?.mapNotNull { it.id }?.toSet().orEmpty()
-        var score = 60
-        if (artists.any { it in seedArtists }) score += 30
-        if (artists.any { it in momentArtistIds }) score += 15
-        if (artists.any { it in vaultArtistIds }) score += 10
-        if (seedAlbum.isNotBlank() && normalize(metadata?.album?.id.orEmpty()) == seedAlbum) score += 10
-        return score.coerceAtMost(100)
-    }
-
-    private fun hasExplicitRadioRelation(
-        candidate: MediaItem,
-        seedArtists: Set<String>,
-        seedAlbum: String,
-        momentArtistIds: Set<String>,
-        vaultArtistIds: Set<String>,
-    ): Boolean {
-        val metadata = candidate.metadata
-        val artists = metadata?.artists?.mapNotNull { it.id }?.toSet().orEmpty()
-        return artists.any { it in seedArtists || it in momentArtistIds || it in vaultArtistIds } ||
-            (seedAlbum.isNotBlank() && normalize(metadata?.album?.id.orEmpty()) == seedAlbum)
-    }
